@@ -390,3 +390,80 @@ AI와 소통하는 것은 사람과 소통하는 것과 같다. 명확하게 소
 프롬프트 엔지니어링 도구를 사용한다면 항상 그 도구가 생성한 프롬프트가 의미가 있는지 검토하고 얼마나 많은 API 호출을 생성하는지 추적해야 한다. 도구 
 개발자가 아무리 뛰어나도 결국엔 사람이라 다른 사람처럼 실수를 할 수 있기 때문이다.  
   
+# **프롬프트 정리 및 버전 관리하기**  
+프롬프트를 코드와 분리해서 관리하는 것이 좋다. 예를 들어 프롬프트를 prompts.py 파일에 넣고 모델 질의를 생성할 때 이런 프롬프트를 참조할 수 있다.  
+  
+```
+file: prompts.py
+GPT4o_ENTITY_EXTRACTION_PROMPT = [YOUR PROMPT]
+
+file: application.py
+from prompts import GPT4o_ENTITY_EXTRACTION_PROMPT
+
+def query_openai(model_name, user_prompt):
+    completion = client.chat.completions.create(
+        model=model_name,
+        messages=[
+            {"role": "system", "content": GPT4o_ENTITY_EXTRACTION_PROMPT},
+            {"role": "user", "content": user_prompt}
+        ]
+    )
+```  
+  
+이러한 접근 방식에는 여러 가지 장점이 있다.  
+  
+- 재사용성: 여러 애플리케이션이 동일한 프롬프트를 재사용할 수 있다.  
+- 테스트: 코드와 프롬프트를 별도로 테스트할 수 있다. 예를 들어 코드를 다양한 프롬프트로 테스트할 수 있다.  
+- 가독성: 프롬프트와 코드를 분리하면 둘 다 읽기 쉬워진다.  
+- 협업: 해당 분야의 전문가들이 코드를 신경 쓰지 않고도 프롬프트 개발에 집중해 협업할 수 있다.  
+  
+여러 애플리케이션에서 다양한 프롬프트를 사용한다면 각 프롬프트에 메타데이터를 추가해 어떤 용도로 만들어진 것인지 쉽게 파악할 수 있게 하는 것이 좋다. 
+또한 모델이나 애플리케이션 유형 등으로 프롬프트를 쉽게 검색할 수 있도록 체계적으로 정리하는 것이 좋다. 예를 들어 다음과 같이 각 프롬프트를 파이썬 
+객체로 감쌀 수 있다.  
+  
+```
+from pydantic import BaseModel
+
+class Prompt(BaseModel):
+    model_name: str
+    date_created: datetime
+    prompt_text: str
+    application: str
+    creator: str
+```  
+  
+프롬프트 템플릿에는 다음과 같이 프롬프트 사용 방법에 관한 다른 정보도 포함될 수 있다.  
+  
+- 모델 엔드포인트 URL  
+- 온도나 top-p와 같은 이상적인 샘플링 파라미터  
+- 입력 스키마  
+- 예상퇴는 출력 스키마(구조화된 출력의 경우)  
+  
+여러 도구들이 프롬프트를 저장하기 위한 특별한 .prompt 파일 형식을 제안했다. 구글 파이어베이스의 닷프롬프트, 휴먼루프, 컨티뉴 데브, 프롬프트파일을 
+참조하자. 다음은 파이어베이스 닷프롬프트 파일의 예시다.  
+  
+```
+---
+model: vertexai/gemini-1.5-flash
+input:
+    schema:
+        theme: string
+output:
+    format: json
+    schema:
+        name: string
+        price: integer
+        ingredients(array): string
+---
+
+Generate a menu item that could be found at a {{theme}} themed restaurant.
+```  
+  
+프롬프트 파일으 깃 저장소에 함께 관리하면 깃을 통해 버전 관리가 가능하다. 하지만 이 방식의 단점은 여러 애플리케이션이 동일한 프롬프트를 공유하는 상황에서 
+프롬프트가 업데이트되면 이 프롬프트에 의존하는 모든 애플리케이션이 강제로 새 버전을 사용해야 한다는 점이다. 즉, 깃에서 코드와 함께 프롬프트 버전을 
+관리할 경우 팀이 특정 애플리케이션에서 예전 버전의 프롬프트를 계속 사용하기가 매우 어려워진다.  
+  
+대부분의 팀은 각 프롬프트의 버전을 명확히 구분해 관리하는 별도의 프롬프트 카탈로그를 사용한다. 이렇게 하면 여러 애플리케이션이 각자 다른 버전의 프롬프트를 
+사용할 수 있다. 또란 좋은 프롬프트 카탈로그는 각 프롬프트에 관련 메타데이터를 제공하고 프롬프트 검색 기능도 제공해야 한다. 잘 구현된 프롬프트 카탈로그라면 
+특정 프롬프트에 의존하는 애플리케이션을 추적하고 프롬프트가 업데이트될 때 해당 애플리케이션 담당자에게 알림을 보낼 수도 있을 것이다.  
+  
